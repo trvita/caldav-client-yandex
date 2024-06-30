@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/trvita/caldav-client/internal/ui"
+	"github.com/trvita/caldav-client-yandex/ui"
 )
 
 func main() {

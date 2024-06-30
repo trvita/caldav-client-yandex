@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/emersion/go-webdav/caldav"
+	"github.com/trvita/caldav-client-yandex/caldav"
 	"github.com/google/uuid"
-	"github.com/trvita/caldav-yandex-client/mycal"
+	"github.com/trvita/caldav-client-yandex/mycal"
 )
 
 func FailOnError(err error, msg string) {

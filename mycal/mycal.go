@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/emersion/go-ical"
-	"github.com/emersion/go-webdav"
-	"github.com/emersion/go-webdav/caldav"
+	"github.com/trvita/caldav-client-yandex"
+	"github.com/trvita/caldav-client-yandex/caldav"
 	"golang.org/x/term"
 )
 

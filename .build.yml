@@ -2,7 +2,7 @@ image: alpine/edge
 packages:
   - go
 sources:
-  - https://github.com/emersion/go-webdav
+  - https://github.com/trvita/caldav-client-yandex
 tasks:
   - test: |
       cd go-webdav
