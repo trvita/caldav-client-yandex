@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/trvita/caldav-client-yandex/caldav"
 	"github.com/trvita/caldav-client-yandex/mycal"
 )
@@ -43,15 +42,11 @@ func GetString(message string) string {
 	return str
 }
 
-func GetEvent() (string, string, time.Time, time.Time) {
+func GetEvent() (string, time.Time, time.Time) {
 	var summary, startDate, startTime, endDate, endTime string
 	var startDateTime, endDateTime time.Time
 	var err error
 	summary = GetString("Enter event summary: ")
-	uid, err := uuid.NewUUID()
-	if err != nil {
-		log.Fatalf("could not generate UUID: %v", err)
-	}
 	for {
 		startDate = GetString("Enter event start date (YYYY.MM.DD): ")
 		startTime = GetString("Enter event start time (HH.MM.SS): ")
@@ -74,7 +69,7 @@ func GetEvent() (string, string, time.Time, time.Time) {
 		}
 		break
 	}
-	return summary, uid.String(), startDateTime, endDateTime
+	return summary, startDateTime, endDateTime
 }
 
 func StartMenu(url string) {
@@ -151,10 +146,12 @@ func CalendarMenu(client *caldav.Client, principal string, ctx context.Context) 
 			EventMenu(ctx, client, homeset, calendar)
 		case 3:
 			calendarName := GetString("Enter new calendar name: ")
-			summary, uid, startDateTime, endDateTime := GetEvent()
-			err := mycal.CreateCalendar(ctx, client, homeset, calendarName, summary, uid, startDateTime, endDateTime)
+			summary, startDateTime, endDateTime := GetEvent()
+			err := mycal.CreateCalendar(ctx, client, homeset, calendarName, summary, startDateTime, endDateTime)
 			if err != nil {
 				RedLine(err)
+			} else {
+				fmt.Println("Calendar created")
 			}
 		case 0:
 			BlueLine("Logging out...\n")
@@ -179,9 +176,12 @@ func EventMenu(ctx context.Context, client *caldav.Client, homeset string, calen
 				RedLine(err)
 			}
 		case 2:
-			summary, uid, startDateTime, endDateTime := GetEvent()
-			event := mycal.GetEvent(summary, uid, startDateTime, endDateTime)
-			err := mycal.CreateEvent(ctx, client, calendar, event)
+			summary, startDateTime, endDateTime := GetEvent()
+			event, err := mycal.GetEvent(summary, startDateTime, endDateTime)
+			if err != nil {
+				RedLine(err)
+			}
+			err = mycal.CreateEvent(ctx, client, calendar, event)
 			if err != nil {
 				RedLine(err)
 			}
@@ -191,6 +191,8 @@ func EventMenu(ctx context.Context, client *caldav.Client, homeset string, calen
 			err := mycal.DeleteEvent(ctx, client, calendar, eventUID)
 			if err != nil {
 				RedLine(err)
+			} else {
+				fmt.Println("Event deleted")
 			}
 
 		case 0:
