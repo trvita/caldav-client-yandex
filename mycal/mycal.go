@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -16,12 +15,6 @@ import (
 	"github.com/trvita/caldav-client-yandex/caldav"
 	"golang.org/x/term"
 )
-
-func FailOnError(err error, msg string) {
-	if err != nil {
-		log.Panicf("\u001b[31m%s: %s\u001b[0m", msg, err)
-	}
-}
 
 func GetCredentials(r io.Reader) (string, string, error) {
 	reader := bufio.NewReader(r)
