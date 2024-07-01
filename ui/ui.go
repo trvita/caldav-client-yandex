@@ -127,6 +127,8 @@ func CalendarMenu(client *caldav.Client, principal string, ctx context.Context) 
 		fmt.Println("1. List calendars")
 		fmt.Println("2. Goto calendar")
 		fmt.Println("3. Create calendar")
+		fmt.Println("3. Delete calendar")
+
 		fmt.Println("0. Log out")
 		var answer int
 		fmt.Scan(&answer)
@@ -152,6 +154,19 @@ func CalendarMenu(client *caldav.Client, principal string, ctx context.Context) 
 				RedLine(err)
 			} else {
 				fmt.Println("Calendar created")
+			}
+		case 4:
+			calendarName := GetString("Enter calendar name: ")
+			calendar, err := mycal.FindCalendar(ctx, client, homeset, calendarName)
+			if err != nil {
+				RedLine(err)
+				break
+			}
+			err = mycal.Delete(ctx, client, calendar.Path)
+			if err != nil {
+				RedLine(err)
+			} else {
+				fmt.Println("Calendar deleted")
 			}
 		case 0:
 			BlueLine("Logging out...\n")
@@ -188,7 +203,7 @@ func EventMenu(ctx context.Context, client *caldav.Client, homeset string, calen
 
 		case 3:
 			eventUID := GetString("Enter event UID: ")
-			err := mycal.DeleteEvent(ctx, client, calendar, eventUID)
+			err := mycal.Delete(ctx, client, calendar.Path+eventUID+".ics")
 			if err != nil {
 				RedLine(err)
 			} else {

@@ -76,28 +76,32 @@ func ListCalendars(ctx context.Context, client *caldav.Client, homeset string) e
 }
 
 func CreateCalendar(ctx context.Context, client *caldav.Client, homeset string, calendarName string, summary string, startDateTime time.Time, endDateTime time.Time) error {
-	calendar := ical.NewCalendar()
-	calendar.Props.SetText(ical.PropVersion, "2.0")
-	calendar.Props.SetText(ical.PropProductID, "-//Yandex LLC//Yandex Calendar//EN")
-	calendar.Props.SetText(ical.PropCalendarScale, "GREGORIAN")
-
-	event, err := GetEvent(summary, startDateTime, endDateTime)
+	err := client.Mkdir(ctx, calendarName)
 	if err != nil {
 		return err
 	}
+	// calendar := ical.NewCalendar()
+	// calendar.Props.SetText(ical.PropVersion, "2.0")
+	// calendar.Props.SetText(ical.PropProductID, "-//Yandex LLC//Yandex Calendar//EN")
+	// calendar.Props.SetText(ical.PropCalendarScale, "GREGORIAN")
 
-	uid, err := event.Props.Text("UID")
-	if err != nil {
-		return err
-	}
+	// event, err := GetEvent(summary, startDateTime, endDateTime)
+	// if err != nil {
+	// 	return err
+	// }
 
-	calendar.Children = append(calendar.Children, event.Component)
-	calendarURL := homeset + calendarName + "/"
-	fmt.Println(calendarURL)
-	_, err = client.PutCalendarObject(ctx, calendarURL+uid+".ics", calendar)
-	if err != nil {
-		return err
-	}
+	// uid, err := event.Props.Text("UID")
+	// if err != nil {
+	// 	return err
+	// }
+
+	// calendar.Children = append(calendar.Children, event.Component)
+	// calendarURL := homeset + calendarName + "/"
+	// fmt.Println(calendarURL)
+	// _, err = client.PutCalendarObject(ctx, calendarURL+uid+".ics", calendar)
+	// if err != nil {
+	// 	return err
+	// }
 
 	return nil
 }
@@ -178,7 +182,7 @@ func ListEvents(ctx context.Context, client *caldav.Client, calendar caldav.Cale
 			if err != nil {
 				return err
 			}
-			fmt.Printf("Summary: %s,\tUID: %s,\tStart: %s,\tEnd: %s\n", summary, uid, dtstart, dtend)
+			fmt.Printf("Summary: %s,\nUID: %s,\nStart: %s,\nEnd: %s\n\n", summary, uid, dtstart, dtend)
 		}
 	}
 	return nil
@@ -199,11 +203,12 @@ func GetEvent(summary string, startDateTime time.Time, endDateTime time.Time) (*
 }
 
 func CreateEvent(ctx context.Context, client *caldav.Client, calendar caldav.Calendar, event *ical.Event) error {
-	uid, err := event.Props.Text("UID")
-	if err != nil {
-		fmt.Printf("%s\n", err)
-		return err
-	}
+	// uid, err := event.Props.Text("UID")
+	// if err != nil {
+	// 	fmt.Printf("%s\n", err)
+	// 	return err
+	// }
+	uid := "1mg67fjkwp8i55vgi7y90yandex.ru"
 	eventURL := calendar.Path + uid + ".ics"
 
 	query := &caldav.CalendarQuery{
@@ -249,38 +254,8 @@ func CreateEvent(ctx context.Context, client *caldav.Client, calendar caldav.Cal
 	return nil
 }
 
-func DeleteEvent(ctx context.Context, client *caldav.Client, calendar caldav.Calendar, eventUID string) error {
-	calendarObject, err := client.GetCalendarObject(ctx, calendar.Name)
-	if err != nil {
-		return err
-	}
-	var updatedEvents []*ical.Component
-	for _, component := range calendarObject.Data.Component.Children {
-		if component.Name == ical.CompEvent {
-			uid, err := component.Props.Text(ical.PropUID)
-			if err != nil {
-				return err
-			}
-			if uid == eventUID {
-				continue
-			}
-		}
-		updatedEvents = append(updatedEvents, component)
-	}
-	if len(updatedEvents) == 0 {
-		fmt.Println("Cannot delete the event as it would leave the calendar empty.") // add delete calendar call if implemented
-		return nil
-	}
-
-	calendarObject.Data.Component.Children = updatedEvents
-
-	var buf strings.Builder
-	encoder := ical.NewEncoder(&buf)
-	err = encoder.Encode(calendarObject.Data)
-	if err != nil {
-		return err
-	}
-	_, err = client.PutCalendarObject(ctx, calendarObject.Data.Name, calendarObject.Data)
+func Delete(ctx context.Context, client *caldav.Client, path string) error {
+	err := client.RemoveAll(ctx, path)
 	if err != nil {
 		return err
 	}

@@ -283,13 +283,32 @@ func populateCalendarObject(co *CalendarObject, h http.Header) error {
 		}
 		co.Path = u.Path
 	}
+	// fixing quotes in etag
+
+	// initial implementation by emersion
+
+	// if etag := h.Get("ETag"); etag != "" {
+	// 	etag, err := strconv.Unquote(etag) // can't unquote a string without quotes, invalid syntax
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	co.ETag = etag
+	// }
+
+	// my implementation - not found
+
 	if etag := h.Get("ETag"); etag != "" {
-		etag, err := strconv.Unquote(etag)
-		if err != nil {
-			return err
+		if etag[0:1] == "\"" {
+			etag, err := strconv.Unquote(etag)
+			if err != nil {
+				return err
+			}
+			co.ETag = etag
+		} else {
+			co.ETag = etag
 		}
-		co.ETag = etag
 	}
+
 	if contentLength := h.Get("Content-Length"); contentLength != "" {
 		n, err := strconv.ParseInt(contentLength, 10, 64)
 		if err != nil {
@@ -325,6 +344,16 @@ func (c *Client) GetCalendarObject(ctx context.Context, path string) (*CalendarO
 	if err != nil {
 		return nil, err
 	}
+
+	// // mine
+	// dump, err := httputil.DumpResponse(resp, true)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// fmt.Printf("%s", dump)
+	// // end of mine
+
 	if !strings.EqualFold(mediaType, ical.MIMEType) {
 		return nil, fmt.Errorf("caldav: expected Content-Type %q, got %q", ical.MIMEType, mediaType)
 	}
