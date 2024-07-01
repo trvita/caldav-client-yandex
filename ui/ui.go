@@ -19,8 +19,12 @@ func FailOnError(err error, msg string) {
 	}
 }
 
-func ColouredLine(str string) {
+func BlueLine(str string) {
 	fmt.Printf("\u001b[34m%s\u001b[0m", str)
+}
+
+func RedLine(err error) {
+	fmt.Printf("\u001b[31m%s\u001b[0m\n", err)
 }
 
 func ExtractUsername(path string) string {
@@ -74,7 +78,7 @@ func GetEvent() (string, string, time.Time, time.Time) {
 }
 
 func StartMenu(url string) {
-	ColouredLine("Main menu:\n")
+	BlueLine("Main menu:\n")
 	for {
 		fmt.Println("1. Log in")
 		fmt.Println("0. Exit")
@@ -98,18 +102,18 @@ func StartMenu(url string) {
 				if ans == "y" {
 					continue
 				} else if ans == "n" {
-					ColouredLine("Shutting down...\n")
+					BlueLine("Shutting down...\n")
 					return
 				}
 
 			}
 			err = CalendarMenu(client, principal, ctx)
 			if err != nil {
-				fmt.Printf("%s\n", err)
+				RedLine(err)
 				return
 			}
 		case 0:
-			ColouredLine("Shutting down...\n")
+			BlueLine("Shutting down...\n")
 			return
 		}
 	}
@@ -118,12 +122,12 @@ func StartMenu(url string) {
 func CalendarMenu(client *caldav.Client, principal string, ctx context.Context) error {
 	homeset, err := client.FindCalendarHomeSet(ctx, principal)
 	if err != nil {
-		fmt.Printf("%s\n", err)
+		RedLine(err)
 		return err
 	}
 
 	username := ExtractUsername(principal)
-	ColouredLine("Current user: " + username + "\n")
+	BlueLine("Current user: " + username + "\n")
 	for {
 		fmt.Println("1. List calendars")
 		fmt.Println("2. Goto calendar")
@@ -135,32 +139,32 @@ func CalendarMenu(client *caldav.Client, principal string, ctx context.Context) 
 		case 1:
 			err := mycal.ListCalendars(ctx, client, homeset)
 			if err != nil {
-				fmt.Printf("%s\n", err)
+				RedLine(err)
 			}
 		case 2:
-			calendarName := GetString("Enter calendar name:")
+			calendarName := GetString("Enter calendar name: ")
 			calendar, err := mycal.FindCalendar(ctx, client, homeset, calendarName)
 			if err != nil {
-				fmt.Printf("%s\n", err)
+				RedLine(err)
 				break
 			}
 			EventMenu(ctx, client, homeset, calendar)
 		case 3:
-			calendarName := GetString("Enter new calendar name:")
+			calendarName := GetString("Enter new calendar name: ")
 			summary, uid, startDateTime, endDateTime := GetEvent()
 			err := mycal.CreateCalendar(ctx, client, homeset, calendarName, summary, uid, startDateTime, endDateTime)
 			if err != nil {
-				fmt.Printf("%s\n", err)
+				RedLine(err)
 			}
 		case 0:
-			ColouredLine("Logging out...\n")
+			BlueLine("Logging out...\n")
 			return nil
 		}
 	}
 }
 
 func EventMenu(ctx context.Context, client *caldav.Client, homeset string, calendar caldav.Calendar) {
-	ColouredLine("Current calendar:" + calendar.Name + " " + calendar.Path + " " + homeset + "\n")
+	BlueLine("Current calendar:" + calendar.Name + " " + calendar.Path + " " + homeset + "\n")
 	for {
 		fmt.Println("1. List events")
 		fmt.Println("2. Create event")
@@ -172,25 +176,25 @@ func EventMenu(ctx context.Context, client *caldav.Client, homeset string, calen
 		case 1:
 			err := mycal.ListEvents(ctx, client, calendar)
 			if err != nil {
-				fmt.Printf("%s\n", err)
+				RedLine(err)
 			}
 		case 2:
 			summary, uid, startDateTime, endDateTime := GetEvent()
 			event := mycal.GetEvent(summary, uid, startDateTime, endDateTime)
 			err := mycal.CreateEvent(ctx, client, calendar, event)
 			if err != nil {
-				fmt.Printf("%s\n", err)
+				RedLine(err)
 			}
 
 		case 3:
 			eventUID := GetString("Enter event UID: ")
 			err := mycal.DeleteEvent(ctx, client, calendar, eventUID)
 			if err != nil {
-				fmt.Printf("%s\n", err)
+				RedLine(err)
 			}
 
 		case 0:
-			ColouredLine("Returning to calendar menu...\n")
+			BlueLine("Returning to calendar menu...\n")
 			return
 		}
 	}
