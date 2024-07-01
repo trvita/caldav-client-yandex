@@ -12,64 +12,83 @@ import (
 	"time"
 
 	"github.com/emersion/go-ical"
-	"github.com/trvita/caldav-client-yandex"
+	webdav "github.com/trvita/caldav-client-yandex"
 	"github.com/trvita/caldav-client-yandex/caldav"
 	"golang.org/x/term"
 )
 
 func FailOnError(err error, msg string) {
 	if err != nil {
-		log.Panicf("\u001b[31m%s: %s\u001b[0m\n", msg, err)
+		log.Panicf("\u001b[31m%s: %s\u001b[0m", msg, err)
 	}
 }
 
-func GetCredentials(r io.Reader) (string, string) {
+func GetCredentials(r io.Reader) (string, string, error) {
 	reader := bufio.NewReader(r)
 	fmt.Print("username: ")
 	username, err := reader.ReadString('\n')
-	FailOnError(err, "Error reading username")
+	if err != nil {
+		fmt.Printf("%s\n", err)
+		return "", "", err
+	}
 	username = strings.TrimSpace(username)
 
 	fmt.Print("password: ")
 	var password string
 	if r == os.Stdin {
 		bytePassword, err := term.ReadPassword(int(os.Stdin.Fd()))
-		FailOnError(err, "Error reading password")
+		if err != nil {
+			fmt.Printf("%s\n", err)
+			return "", "", err
+		}
 		password = string(bytePassword)
 		fmt.Println()
 	} else {
 		password, err = reader.ReadString('\n')
-		FailOnError(err, "Error reading password")
+		if err != nil {
+			fmt.Printf("%s\n", err)
+			return "", "", err
+		}
 		password = strings.TrimSpace(password)
 	}
-	return username, password
+	return username, password, nil
 }
 
 func CreateClient(url string, r io.Reader) (*caldav.Client, string, context.Context, error) {
-	username, password := GetCredentials(r)
+	username, password, err := GetCredentials(r)
+	if err != nil {
+		fmt.Printf("%s\n", err)
+		return nil, "", nil, err
+	}
 	httpClient := webdav.HTTPClientWithBasicAuth(&http.Client{}, username, password)
 	client, err := caldav.NewClient(httpClient, url)
 	if err != nil {
+		fmt.Printf("%s\n", err)
 		return nil, "", nil, err
 	}
 
 	ctx := context.Background()
 	principal, err := client.FindCurrentUserPrincipal(ctx)
 	if err != nil {
+		fmt.Printf("%s\n", err)
 		return nil, "", nil, err
 	}
 	return client, principal, ctx, nil
 }
 
-func ListCalendars(ctx context.Context, client *caldav.Client, homeset string) {
+func ListCalendars(ctx context.Context, client *caldav.Client, homeset string) error {
 	calendars, err := client.FindCalendars(ctx, homeset)
-	FailOnError(err, "Error fetching calendars")
+	if err != nil {
+		fmt.Printf("%s\n", err)
+		return err
+	}
 	for _, calendar := range calendars {
 		fmt.Printf("Calendar: %s\n", calendar.Name)
 	}
+	return nil
 }
 
-func CreateCalendar(ctx context.Context, client *caldav.Client, homeset string, calendarName string, summary string, uid string, startDateTime time.Time, endDateTime time.Time) {
+func CreateCalendar(ctx context.Context, client *caldav.Client, homeset string, calendarName string, summary string, uid string, startDateTime time.Time, endDateTime time.Time) error {
 	calendar := ical.NewCalendar()
 	calendar.Props.SetText(ical.PropVersion, "2.0")
 	calendar.Props.SetText(ical.PropProductID, "-//trvita//EN")
@@ -81,11 +100,18 @@ func CreateCalendar(ctx context.Context, client *caldav.Client, homeset string, 
 	var buf strings.Builder
 	encoder := ical.NewEncoder(&buf)
 	err := encoder.Encode(calendar)
-	FailOnError(err, "error encoding calendar")
+	if err != nil {
+		fmt.Printf("%s\n", err)
+		return err
+	}
 	calendarURL := homeset + calendarName + "/"
 	_, err = client.PutCalendarObject(ctx, calendarURL, calendar)
-	FailOnError(err, "Error putting calendar object")
+	if err != nil {
+		fmt.Printf("%s\n", err)
+		return err
+	}
 	fmt.Println("Calendar created")
+	return nil
 }
 
 func FindCalendar(ctx context.Context, client *caldav.Client, homeset string, calendarName string) (caldav.Calendar, error) {
@@ -103,7 +129,7 @@ func FindCalendar(ctx context.Context, client *caldav.Client, homeset string, ca
 	return calendar, fmt.Errorf("calendar with name %s not found", calendarName)
 }
 
-func ListEvents(ctx context.Context, client *caldav.Client, calendar caldav.Calendar) {
+func ListEvents(ctx context.Context, client *caldav.Client, calendar caldav.Calendar) error {
 	query := &caldav.CalendarQuery{
 		CompRequest: caldav.CalendarCompRequest{
 			Name:  "VCALENDAR",
@@ -115,16 +141,13 @@ func ListEvents(ctx context.Context, client *caldav.Client, calendar caldav.Cale
 					"UID",
 					"DTSTART",
 					"DTEND",
-					"DURATION",
 				},
 			}},
 		},
 		CompFilter: caldav.CompFilter{
 			Name: "VCALENDAR",
 			Comps: []caldav.CompFilter{{
-				Name:  "VEVENT",
-				Start: time.Now().Add(-92 * time.Hour),
-				End:   time.Now().Add(24 * time.Hour),
+				Name: "VEVENT",
 			}},
 		},
 	}
@@ -133,21 +156,36 @@ func ListEvents(ctx context.Context, client *caldav.Client, calendar caldav.Cale
 		calendar.Path,
 		query,
 	)
-	FailOnError(err, "Error getting calendar query")
-
+	if err != nil {
+		fmt.Printf("%s\n", err)
+		return err
+	}
 	for _, calendarObject := range cal {
 		for _, event := range calendarObject.Data.Events() {
 			summary, err := event.Props.Text("SUMMARY")
-			FailOnError(err, "Error reading summary")
+			if err != nil {
+				fmt.Printf("%s\n", err)
+				return err
+			}
 			uid, err := event.Props.Text("UID")
-			FailOnError(err, "Error reading UID")
+			if err != nil {
+				fmt.Printf("%s\n", err)
+				return err
+			}
 			dtstart, err := event.Props.DateTime("DTSTART", time.Local)
-			FailOnError(err, "Error reading DTSTART")
+			if err != nil {
+				fmt.Printf("%s\n", err)
+				return err
+			}
 			dtend, err := event.Props.DateTime("DTEND", time.Local)
-			FailOnError(err, "Error reading DTEND")
+			if err != nil {
+				fmt.Printf("%s\n", err)
+				return err
+			}
 			fmt.Printf("Summary: %s,\tUID: %s,\tStart: %s,\tEnd: %s\n", summary, uid, dtstart, dtend)
 		}
 	}
+	return nil
 }
 
 func GetEvent(summary string, uid string, startDateTime time.Time, endDateTime time.Time) *ical.Event {
@@ -157,30 +195,76 @@ func GetEvent(summary string, uid string, startDateTime time.Time, endDateTime t
 	event.Props.SetDateTime(ical.PropDateTimeStamp, time.Now().UTC())
 	event.Props.SetDateTime(ical.PropDateTimeStart, startDateTime)
 	event.Props.SetDateTime(ical.PropDateTimeEnd, endDateTime)
-	fmt.Println("Event created with UID " + uid)
 	return event
 }
 
-func CreateEvent(ctx context.Context, client *caldav.Client, homeset string, calendarName string, event *ical.Event) {
-	calendar, err := client.GetCalendarObject(ctx, homeset+calendarName)
-	FailOnError(err, "Error getting calendar object")
-	calendar.Data.Component.Children = append(calendar.Data.Component.Children, event.Component)
-	var buf strings.Builder
-	encoder := ical.NewEncoder(&buf)
-	err = encoder.Encode(calendar.Data)
-	FailOnError(err, "Error encoding calendar")
-	_, err = client.PutCalendarObject(ctx, calendarName, calendar.Data)
-	FailOnError(err, "Error putting calendar object")
+func CreateEvent(ctx context.Context, client *caldav.Client, calendar caldav.Calendar, event *ical.Event) error {
+	// uid, err := event.Props.Text("UID")
+	// if err != nil {
+	// 	fmt.Printf("%s\n", err)
+	// 	return err
+	// }
+	// eventURL := calendar.Path + uid + ".ics"
+
+	query := &caldav.CalendarQuery{
+		CompRequest: caldav.CalendarCompRequest{
+			Name:  "VCALENDAR",
+			Props: []string{"VERSION"},
+			Comps: []caldav.CalendarCompRequest{{
+				Name: "VEVENT",
+				Props: []string{
+					"SUMMARY",
+					"UID",
+					"DTSTART",
+					"DTEND",
+				},
+			}},
+		},
+		CompFilter: caldav.CompFilter{
+			Name: "VCALENDAR",
+			Comps: []caldav.CompFilter{{
+				Name: "VEVENT",
+			}},
+		},
+	}
+	cal, err := client.QueryCalendar(
+		ctx,
+		calendar.Path,
+		query,
+	)
+	if err != nil {
+		fmt.Printf("%s\n", err)
+		return err
+	}
+
+	for _, calendarObject := range cal {
+		if calendarObject.Data.Name == calendar.Name {
+			calendarObject.Data.Component.Children = append(calendarObject.Data.Component.Children, event.Component)
+			_, err := client.PutCalendarObject(ctx, calendarObject.Data.Name, calendarObject.Data)
+			if err != nil {
+				fmt.Printf("%s\n", err)
+				return err
+			}
+			break
+		}
+	}
+	return nil
 }
 
-func DeleteEvent(ctx context.Context, client *caldav.Client, homeset string, calendarName string, eventUID string) {
-	calendar, err := client.GetCalendarObject(ctx, calendarName)
-	FailOnError(err, "Error getting calendar object")
+func DeleteEvent(ctx context.Context, client *caldav.Client, calendar caldav.Calendar, eventUID string) error {
+	calendarObject, err := client.GetCalendarObject(ctx, calendar.Name)
+	if err != nil {
+		fmt.Printf("%s\n", err)
+		return err
+	}
 	var updatedEvents []*ical.Component
-	for _, component := range calendar.Data.Component.Children {
+	for _, component := range calendarObject.Data.Component.Children {
 		if component.Name == ical.CompEvent {
 			uid, err := component.Props.Text(ical.PropUID)
-			FailOnError(err, "Error reading UID")
+			if err != nil {
+				fmt.Printf("%s\n", err)
+				return err
+			}
 			if uid == eventUID {
 				continue
 			}
@@ -189,17 +273,23 @@ func DeleteEvent(ctx context.Context, client *caldav.Client, homeset string, cal
 	}
 	if len(updatedEvents) == 0 {
 		fmt.Println("Cannot delete the event as it would leave the calendar empty.") // add delete calendar call if implemented
-		return
+		return nil
 	}
 
-	calendar.Data.Component.Children = updatedEvents
+	calendarObject.Data.Component.Children = updatedEvents
 
 	var buf strings.Builder
 	encoder := ical.NewEncoder(&buf)
-	err = encoder.Encode(calendar.Data)
-	FailOnError(err, "Error encoding calendar")
-	_, err = client.PutCalendarObject(ctx, calendarName, calendar.Data)
-	FailOnError(err, "Error putting calendar object")
-
+	err = encoder.Encode(calendarObject.Data)
+	if err != nil {
+		fmt.Printf("%s\n", err)
+		return err
+	}
+	_, err = client.PutCalendarObject(ctx, calendarObject.Data.Name, calendarObject.Data)
+	if err != nil {
+		fmt.Printf("%s\n", err)
+		return err
+	}
 	fmt.Println("Event deleted")
+	return nil
 }

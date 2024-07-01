@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/trvita/caldav-client-yandex/caldav"
 	"github.com/google/uuid"
+	"github.com/trvita/caldav-client-yandex/caldav"
 	"github.com/trvita/caldav-client-yandex/mycal"
 )
 
@@ -103,7 +103,11 @@ func StartMenu(url string) {
 				}
 
 			}
-			CalendarMenu(client, principal, ctx)
+			err = CalendarMenu(client, principal, ctx)
+			if err != nil {
+				fmt.Printf("%s\n", err)
+				return
+			}
 		case 0:
 			ColouredLine("Shutting down...\n")
 			return
@@ -111,9 +115,13 @@ func StartMenu(url string) {
 	}
 }
 
-func CalendarMenu(client *caldav.Client, principal string, ctx context.Context) {
+func CalendarMenu(client *caldav.Client, principal string, ctx context.Context) error {
 	homeset, err := client.FindCalendarHomeSet(ctx, principal)
-	FailOnError(err, "Error finding calendar homeset")
+	if err != nil {
+		fmt.Printf("%s\n", err)
+		return err
+	}
+
 	username := ExtractUsername(principal)
 	ColouredLine("Current user: " + username + "\n")
 	for {
@@ -125,7 +133,10 @@ func CalendarMenu(client *caldav.Client, principal string, ctx context.Context) 
 		fmt.Scan(&answer)
 		switch answer {
 		case 1:
-			mycal.ListCalendars(ctx, client, homeset)
+			err := mycal.ListCalendars(ctx, client, homeset)
+			if err != nil {
+				fmt.Printf("%s\n", err)
+			}
 		case 2:
 			calendarName := GetString("Enter calendar name:")
 			calendar, err := mycal.FindCalendar(ctx, client, homeset, calendarName)
@@ -137,10 +148,13 @@ func CalendarMenu(client *caldav.Client, principal string, ctx context.Context) 
 		case 3:
 			calendarName := GetString("Enter new calendar name:")
 			summary, uid, startDateTime, endDateTime := GetEvent()
-			mycal.CreateCalendar(ctx, client, homeset, calendarName, summary, uid, startDateTime, endDateTime)
+			err := mycal.CreateCalendar(ctx, client, homeset, calendarName, summary, uid, startDateTime, endDateTime)
+			if err != nil {
+				fmt.Printf("%s\n", err)
+			}
 		case 0:
 			ColouredLine("Logging out...\n")
-			return
+			return nil
 		}
 	}
 }
@@ -156,14 +170,25 @@ func EventMenu(ctx context.Context, client *caldav.Client, homeset string, calen
 		fmt.Scan(&answer)
 		switch answer {
 		case 1:
-			mycal.ListEvents(ctx, client, calendar)
+			err := mycal.ListEvents(ctx, client, calendar)
+			if err != nil {
+				fmt.Printf("%s\n", err)
+			}
 		case 2:
 			summary, uid, startDateTime, endDateTime := GetEvent()
 			event := mycal.GetEvent(summary, uid, startDateTime, endDateTime)
-			mycal.CreateEvent(ctx, client, homeset, calendar.Name, event)
+			err := mycal.CreateEvent(ctx, client, calendar, event)
+			if err != nil {
+				fmt.Printf("%s\n", err)
+			}
+
 		case 3:
 			eventUID := GetString("Enter event UID: ")
-			mycal.DeleteEvent(ctx, client, homeset, calendar.Name, eventUID)
+			err := mycal.DeleteEvent(ctx, client, calendar, eventUID)
+			if err != nil {
+				fmt.Printf("%s\n", err)
+			}
+
 		case 0:
 			ColouredLine("Returning to calendar menu...\n")
 			return
