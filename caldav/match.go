@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/emersion/go-ical"
+	"github.com/trvita/go-ical"
 )
 
 // Filter returns the filtered list of calendar objects matching the provided query.

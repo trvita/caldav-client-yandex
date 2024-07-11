@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/emersion/go-ical"
 	webdav "github.com/trvita/caldav-client-yandex"
 	"github.com/trvita/caldav-client-yandex/internal"
+	"github.com/trvita/go-ical"
 )
 
 var CapabilityCalendar = webdav.Capability("calendar-access")

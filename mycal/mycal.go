@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/emersion/go-ical"
 	"github.com/google/uuid"
 	webdav "github.com/trvita/caldav-client-yandex"
 	"github.com/trvita/caldav-client-yandex/caldav"
+	"github.com/trvita/go-ical"
 	"golang.org/x/term"
 )
 
@@ -124,16 +124,11 @@ func FindCalendar(ctx context.Context, client *caldav.Client, homeset string, ca
 func ListEvents(ctx context.Context, client *caldav.Client, calendar caldav.Calendar) error {
 	query := &caldav.CalendarQuery{
 		CompRequest: caldav.CalendarCompRequest{
-			Name:  "VCALENDAR",
-			Props: []string{"VERSION"},
+			Name:     "VCALENDAR",
+			AllProps: true,
 			Comps: []caldav.CalendarCompRequest{{
-				Name: "VEVENT",
-				Props: []string{
-					"SUMMARY",
-					"UID",
-					"DTSTART",
-					"DTEND",
-				},
+				Name:     "VEVENT",
+				AllProps: true,
 			}},
 		},
 		CompFilter: caldav.CompFilter{
@@ -152,37 +147,13 @@ func ListEvents(ctx context.Context, client *caldav.Client, calendar caldav.Cale
 		return err
 	}
 	for _, calendarObject := range cal {
-		ver, err := calendarObject.Data.Props.Text(ical.PropVersion)
-		if err != nil {
-			return err
-		}
-		id, err := calendarObject.Data.Props.Text(ical.PropProductID)
-		if err != nil {
-			return err
-		}
-		scale, err := calendarObject.Data.Props.Text(ical.PropCalendarScale)
-		if err != nil {
-			return err
-		}
-		fmt.Printf("%s %s %s\n", ver, id, scale)
 		for _, event := range calendarObject.Data.Events() {
-			summary, err := event.Props.Text("SUMMARY")
-			if err != nil {
-				return err
+			for _, prop := range event.Props {
+				for _, p := range prop {
+					fmt.Printf("%s: %s\n", p.Name, p.Value)
+				}
 			}
-			uid, err := event.Props.Text("UID")
-			if err != nil {
-				return err
-			}
-			dtstart, err := event.Props.DateTime("DTSTART", time.Local)
-			if err != nil {
-				return err
-			}
-			dtend, err := event.Props.DateTime("DTEND", time.Local)
-			if err != nil {
-				return err
-			}
-			fmt.Printf("Summary: %s,\nUID: %s,\nStart: %s,\nEnd: %s\n\n", summary, uid, dtstart, dtend)
+			fmt.Println()
 		}
 	}
 	return nil
@@ -202,54 +173,21 @@ func GetEvent(summary string, startDateTime time.Time, endDateTime time.Time) (*
 	return event, nil
 }
 
-func CreateEvent(ctx context.Context, client *caldav.Client, calendar caldav.Calendar, event *ical.Event) error {
-	// uid, err := event.Props.Text("UID")
-	// if err != nil {
-	// 	fmt.Printf("%s\n", err)
-	// 	return err
-	// }
-	uid := "1mg67fjkwp8i55vgi7y90yandex.ru"
-	eventURL := calendar.Path + uid + ".ics"
+func CreateEvent(ctx context.Context, client *caldav.Client, homeset, calendarName string, event *ical.Event) error {
+	calendar := ical.NewCalendar()
+	calendar.Props.SetText(ical.PropVersion, "2.0")
+	calendar.Props.SetText(ical.PropProductID, "-//trvita//EN")
+	calendar.Props.SetText(ical.PropCalendarScale, "GREGORIAN")
 
-	query := &caldav.CalendarQuery{
-		CompRequest: caldav.CalendarCompRequest{
-			Name:  "VCALENDAR",
-			Props: []string{"VERSION"},
-			Comps: []caldav.CalendarCompRequest{{
-				Name: "VEVENT",
-				Props: []string{
-					"SUMMARY",
-					"UID",
-					"DTSTART",
-					"DTEND",
-				},
-			}},
-		},
-		CompFilter: caldav.CompFilter{
-			Name: "VCALENDAR",
-			Comps: []caldav.CompFilter{{
-				Name: "VEVENT",
-			}},
-		},
-	}
-	cal, err := client.QueryCalendar(
-		ctx,
-		calendar.Path,
-		query,
-	)
+	calendar.Children = append(calendar.Children, event.Component)
+	eventUID, err := event.Props.Text(ical.PropUID)
 	if err != nil {
 		return err
 	}
-
-	for _, calendarObject := range cal {
-		if calendarObject.Data.Name == calendar.Name {
-			calendarObject.Data.Component.Children = append(calendarObject.Data.Component.Children, event.Component)
-			_, err := client.PutCalendarObject(ctx, eventURL, calendarObject.Data)
-			if err != nil {
-				return err
-			}
-			break
-		}
+	eventURL := homeset + calendarName + "/" + eventUID + ".ics"
+	_, err = client.PutCalendarObject(ctx, eventURL, calendar)
+	if err != nil {
+		return err
 	}
 	return nil
 }

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/emersion/go-ical"
+	"github.com/trvita/go-ical"
 )
 
 var propFindSupportedCalendarComponentRequest = `

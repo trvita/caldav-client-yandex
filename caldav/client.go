@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/emersion/go-ical"
 	webdav "github.com/trvita/caldav-client-yandex"
 	"github.com/trvita/caldav-client-yandex/internal"
+	"github.com/trvita/go-ical"
 )
 
 // DiscoverContextURL performs a DNS-based CardDAV service discovery as

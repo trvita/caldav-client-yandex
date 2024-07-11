@@ -127,8 +127,7 @@ func CalendarMenu(client *caldav.Client, principal string, ctx context.Context) 
 		fmt.Println("1. List calendars")
 		fmt.Println("2. Goto calendar")
 		fmt.Println("3. Create calendar")
-		fmt.Println("3. Delete calendar")
-
+		fmt.Println("4. Delete calendar")
 		fmt.Println("0. Log out")
 		var answer int
 		fmt.Scan(&answer)
@@ -196,7 +195,7 @@ func EventMenu(ctx context.Context, client *caldav.Client, homeset string, calen
 			if err != nil {
 				RedLine(err)
 			}
-			err = mycal.CreateEvent(ctx, client, calendar, event)
+			err = mycal.CreateEvent(ctx, client, homeset, calendar.Name, event)
 			if err != nil {
 				RedLine(err)
 			}
