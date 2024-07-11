@@ -1,9 +1,6 @@
 # go-webdav
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/trvita/caldav-client-yandex.svg)](https://pkg.go.dev/github.com/trvita/caldav-client-yandex)
-[![builds.sr.ht status](https://builds.sr.ht/~trvita/caldav-client-yandex/commits/master.svg)](https://builds.sr.ht/~trvita/caldav-client-yandex/commits/master?)
-
-A Go library for [WebDAV], [CalDAV] and [CardDAV].
+A Go library for [WebDAV], [CalDAV] and [CardDAV]. Fork from github.com/emersion/go-webdav
 
 ## License
 
